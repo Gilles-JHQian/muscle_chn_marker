@@ -1,0 +1,235 @@
+:root {
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --border: #d8dee9;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #2563eb;
+  --muscle: #ef4444;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* --- top bar --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.topbar h1 { font-size: 16px; margin: 0; }
+.topbar-controls { display: flex; align-items: center; gap: 16px; }
+.muted { color: var(--muted); font-size: 12px; }
+
+.control { display: flex; align-items: center; gap: 6px; }
+.control span { color: var(--muted); font-size: 12px; }
+.control select {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.error-banner {
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 8px 16px;
+  border-bottom: 1px solid #fecaca;
+}
+
+/* --- main layout: brain left, spectro right --- */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(340px, 38%) 1fr;
+  gap: 10px;
+  padding: 10px;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+.badge {
+  background: #fef9c3;
+  color: #854d0e;
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* --- brain panel --- */
+.brain-canvas-wrap { flex: 1; min-height: 0; position: relative; }
+.brain-canvas-wrap canvas { display: block; }
+.panel-loading,
+.brain-degraded {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: var(--muted);
+  padding: 24px;
+}
+.brain-degraded h3 { margin: 0 0 6px; color: var(--text); }
+.brain-legend {
+  display: flex;
+  gap: 16px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+.brain-legend .dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.dot-active { background: #facc15; }
+.dot-muscle { background: var(--muscle); }
+.dot-normal { background: #cbd5e1; }
+
+/* --- spectro panel --- */
+.spectro-panel { }
+.tag-selector { display: flex; gap: 4px; }
+.tag-btn {
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 3px 12px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.tag-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.spectro-grid-wrap {
+  max-height: 28%;
+  overflow-y: auto;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.spectro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+.thumb {
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.thumb img { width: 100%; height: auto; border-radius: 3px; display: block; }
+.thumb-label { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.thumb.hovered { border-color: #22d3ee; }
+.thumb.selected { border-color: #facc15; background: #fefce8; }
+.thumb.muscle { background: #fef2f2; }
+.thumb.muscle .thumb-label { color: var(--muscle); font-weight: 600; }
+
+.spectro-detail-wrap { flex: 1; min-height: 0; overflow: hidden; padding: 6px; }
+.spectro-detail {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 6px;
+  height: 100%;
+}
+.stage { min-height: 0; min-width: 0; }
+.stage-loading, .stage-error, .detail-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: var(--muted); font-size: 13px;
+}
+.stage-error { color: #b91c1c; }
+.detail-empty { padding: 24px; text-align: center; }
+
+/* --- actions: marking + export --- */
+.spectro-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.marking-controls { display: flex; flex-direction: column; gap: 6px; max-width: 60%; }
+.muscle-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.muscle-toggle.disabled { color: var(--muted); cursor: not-allowed; }
+.muscle-toggle input { width: 16px; height: 16px; }
+.help-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
+.help-panel {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.help-intro { margin: 0 0 6px; color: var(--muted); }
+.help-panel ol { margin: 0; padding-left: 18px; }
+.help-panel li { margin-bottom: 4px; }
+
+.export-box { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.export-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.export-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+.export-status { font-size: 12px; max-width: 280px; text-align: right; }
+.export-status.ok { color: #15803d; }
+.export-status.err { color: #b91c1c; }
