@@ -4,9 +4,20 @@ import { TrackballControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import ElectrodeInstances from './ElectrodeInstances.jsx';
 
+// Four fixed anatomical viewpoints (FreeSurfer RAS: +x=Right, +y=Anterior,
+// +z=Superior). Camera looks at the cortex centre (origin after the group
+// offset); `up` orients the view sensibly. `reset()` on each view's controls
+// returns to exactly this framing.
+const DIST = 320;
+const VIEWS = [
+  { key: 'L', label: 'Left', position: [-DIST, 0, 0], up: [0, 0, 1] },
+  { key: 'R', label: 'Right', position: [DIST, 0, 0], up: [0, 0, 1] },
+  { key: 'S', label: 'Top', position: [0, 0, DIST], up: [0, 1, 0] },
+  { key: 'I', label: 'Bottom', position: [0, 0, -DIST], up: [0, 1, 0] },
+];
+
 // A directional light pinned to the camera so the cortex facing the viewer is
-// always lit -- this is what keeps gyri/sulci legible from every angle (a fixed
-// light leaves the back of the head in shadow as you rotate).
+// always lit -- keeps gyri/sulci legible from every angle as you rotate.
 function HeadLight({ intensity = 0.6 }) {
   const ref = useRef(null);
   const { camera } = useThree();
@@ -16,11 +27,10 @@ function HeadLight({ intensity = 0.6 }) {
   return <directionalLight ref={ref} intensity={intensity} />;
 }
 
-// Loads the pial GLB and renders the cortex + electrodes in one group, centred
-// on the cortex bounding-box centre so rotation pivots on the brain (not the
-// off-centre electrode cluster). The GLB ships positions only, so we compute
-// smooth vertex normals here -- without them the surface can't be shaded and
-// appears to vanish at grazing angles.
+// Loads the pial GLB and renders cortex + electrodes in one group centred on the
+// cortex bounding-box centre, so rotation pivots on the brain. Geometry is
+// cloned per canvas (the four views are independent WebGL contexts) and smooth
+// vertex normals are computed (the GLB ships positions only).
 function Scene({
   brainUrl,
   electrodes,
@@ -37,6 +47,7 @@ function Scene({
     const clone = scene.clone(true);
     clone.traverse((obj) => {
       if (obj.isMesh) {
+        obj.geometry = obj.geometry.clone();
         obj.geometry.computeVertexNormals();
         obj.material = new THREE.MeshStandardMaterial({
           color: '#cbced3',
@@ -50,12 +61,10 @@ function Scene({
       }
     });
     return clone;
-    // material is created once per loaded mesh; opacity is updated by the effect
-    // below so dragging the slider doesn't rebuild geometry/normals.
+    // opacity is applied live by the effect below, not by rebuilding here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
 
-  // Live opacity updates from the slider.
   useEffect(() => {
     brain.traverse((obj) => {
       if (obj.isMesh && obj.material) {
@@ -91,50 +100,72 @@ function Scene({
   );
 }
 
+// One of the four viewpoints: its own camera, trackball controls and reset.
+function BrainView({ view, sceneProps }) {
+  const controlsRef = useRef(null);
+  return (
+    <div className="brain-subview">
+      <span className="subview-label">{view.label}</span>
+      <button
+        className="subview-reset"
+        title={`Reset ${view.label} view`}
+        onClick={() => controlsRef.current?.reset()}
+      >
+        ⟲
+      </button>
+      <Canvas
+        camera={{ position: view.position, up: view.up, fov: 35, near: 1, far: 4000 }}
+      >
+        <ambientLight intensity={0.5} />
+        <hemisphereLight args={['#ffffff', '#4b5563', 0.55]} />
+        <HeadLight intensity={0.6} />
+        <directionalLight position={[150, 200, 150]} intensity={0.2} />
+        <Suspense fallback={null}>
+          <Scene {...sceneProps} />
+        </Suspense>
+        {/* Screen-space trackball: free rotation with no fixed up-axis. Each
+            view's controls are independent; reset() restores this view's
+            default position/up/target captured at mount. */}
+        <TrackballControls
+          ref={controlsRef}
+          makeDefault
+          rotateSpeed={3.5}
+          zoomSpeed={1.2}
+          panSpeed={0.8}
+          staticMoving
+          minDistance={80}
+          maxDistance={1200}
+        />
+      </Canvas>
+    </div>
+  );
+}
+
 export default function BrainViewer({
   brainUrl,
   electrodes,
-  cortexOpacity = 0.78,
+  cortexOpacity = 0.2,
   selectedChannel,
   muscleSet,
   hoveredChannel,
   onSelect,
   onHover,
 }) {
+  const sceneProps = {
+    brainUrl,
+    electrodes,
+    cortexOpacity,
+    selectedChannel,
+    muscleSet,
+    hoveredChannel,
+    onSelect,
+    onHover,
+  };
   return (
-    <Canvas
-      camera={{ position: [-300, 0, 40], up: [0, 0, 1], fov: 35, near: 1, far: 4000 }}
-    >
-      <ambientLight intensity={0.5} />
-      <hemisphereLight args={['#ffffff', '#4b5563', 0.55]} />
-      <HeadLight intensity={0.6} />
-      <directionalLight position={[150, 200, 150]} intensity={0.2} />
-      <Suspense fallback={null}>
-        <Scene
-          brainUrl={brainUrl}
-          electrodes={electrodes}
-          cortexOpacity={cortexOpacity}
-          selectedChannel={selectedChannel}
-          muscleSet={muscleSet}
-          hoveredChannel={hoveredChannel}
-          onSelect={onSelect}
-          onHover={onHover}
-        />
-      </Suspense>
-      {/* Trackball (not orbit) controls: rotation is in screen space with no
-          fixed up-vector, so horizontal drag always spins about the screen's
-          vertical axis and vertical drag about the screen's horizontal axis,
-          regardless of how the brain is currently oriented. Target defaults to
-          (0,0,0) = the cortex centre after the group offset above. */}
-      <TrackballControls
-        makeDefault
-        rotateSpeed={3.5}
-        zoomSpeed={1.2}
-        panSpeed={0.8}
-        staticMoving
-        minDistance={80}
-        maxDistance={1200}
-      />
-    </Canvas>
+    <div className="brain-grid">
+      {VIEWS.map((view) => (
+        <BrainView key={view.key} view={view} sceneProps={sceneProps} />
+      ))}
+    </div>
   );
 }
