@@ -67,7 +67,11 @@ export default function ElectrodeInstances({
       }}
     >
       <sphereGeometry args={[BASE_RADIUS, 16, 12]} />
-      <meshStandardMaterial vertexColors roughness={0.5} metalness={0.0} />
+      {/* No `vertexColors` here: the sphere geometry has no per-vertex colour
+          attribute, so enabling it sends the per-instance setColorAt() colours
+          down the USE_COLOR path and they render wrong. meshBasicMaterial +
+          the automatic instanceColor shows each contact's exact colour. */}
+      <meshBasicMaterial toneMapped={false} />
     </instancedMesh>
   );
 }

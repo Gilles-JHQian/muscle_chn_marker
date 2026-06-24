@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { TrackballControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -24,6 +24,7 @@ function HeadLight({ intensity = 0.6 }) {
 function Scene({
   brainUrl,
   electrodes,
+  cortexOpacity,
   selectedChannel,
   muscleSet,
   hoveredChannel,
@@ -42,14 +43,29 @@ function Scene({
           roughness: 0.85,
           metalness: 0.0,
           transparent: true,
-          opacity: 0.78,
+          opacity: cortexOpacity,
           depthWrite: true,
           side: THREE.DoubleSide,
         });
       }
     });
     return clone;
+    // material is created once per loaded mesh; opacity is updated by the effect
+    // below so dragging the slider doesn't rebuild geometry/normals.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
+
+  // Live opacity updates from the slider.
+  useEffect(() => {
+    brain.traverse((obj) => {
+      if (obj.isMesh && obj.material) {
+        obj.material.opacity = cortexOpacity;
+        obj.material.transparent = cortexOpacity < 0.99;
+        obj.material.depthWrite = cortexOpacity >= 0.99;
+        obj.material.needsUpdate = true;
+      }
+    });
+  }, [brain, cortexOpacity]);
 
   const center = useMemo(() => {
     const box = new THREE.Box3().setFromObject(brain);
@@ -78,6 +94,7 @@ function Scene({
 export default function BrainViewer({
   brainUrl,
   electrodes,
+  cortexOpacity = 0.78,
   selectedChannel,
   muscleSet,
   hoveredChannel,
@@ -96,6 +113,7 @@ export default function BrainViewer({
         <Scene
           brainUrl={brainUrl}
           electrodes={electrodes}
+          cortexOpacity={cortexOpacity}
           selectedChannel={selectedChannel}
           muscleSet={muscleSet}
           hoveredChannel={hoveredChannel}

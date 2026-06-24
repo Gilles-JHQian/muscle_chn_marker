@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import BrainViewer from './BrainViewer.jsx';
 
 // Falls back to a friendly message if the GLB fails to load (no/partial recon).
@@ -43,6 +43,7 @@ export default function BrainPanel({
   onSelect,
   onHover,
 }) {
+  const [cortexOpacity, setCortexOpacity] = useState(0.78);
   let body;
   if (!subject) {
     body = <Degraded message="Select a subject to begin." />;
@@ -61,6 +62,7 @@ export default function BrainPanel({
         <BrainViewer
           brainUrl={brainUrl}
           electrodes={electrodes}
+          cortexOpacity={cortexOpacity}
           selectedChannel={selectedChannel}
           muscleSet={muscleSet}
           hoveredChannel={hoveredChannel}
@@ -80,6 +82,19 @@ export default function BrainPanel({
       <div className="brain-canvas-wrap">{body}</div>
       {hasRecon && electrodes && (
         <footer className="brain-legend">
+          <label className="opacity-slider" title="Cortex opacity">
+            <span>Opacity</span>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.02"
+              value={cortexOpacity}
+              onChange={(e) => setCortexOpacity(parseFloat(e.target.value))}
+            />
+            <span className="opacity-val">{Math.round(cortexOpacity * 100)}%</span>
+          </label>
+          <span className="legend-sep" />
           <span><i className="dot dot-active" /> selected</span>
           <span><i className="dot dot-muscle" /> muscle</span>
           <span><i className="dot dot-normal" /> channel</span>
