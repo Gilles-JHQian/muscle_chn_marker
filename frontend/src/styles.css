@@ -150,7 +150,7 @@ body {
 }
 .dot-active { background: #facc15; }
 .dot-muscle { background: var(--muscle); }
-.dot-normal { background: #cbd5e1; }
+.dot-normal { background: #5b626d; }
 
 /* --- spectro panel --- */
 .spectro-panel { }

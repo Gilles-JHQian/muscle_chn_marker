@@ -9,7 +9,7 @@ const COLOR = {
   muscle: '#ef4444',   // marked muscle -> red
   active: '#fde047',   // currently selected channel -> bright yellow
   hovered: '#22d3ee',  // hovered -> cyan
-  normal: '#eaeff5',   // default -> very light, near-cortex tone
+  normal: '#5b626d',   // default -> dark grey, readable on the light cortex
 };
 
 // One InstancedMesh for all electrodes (fast for hundreds of contacts).

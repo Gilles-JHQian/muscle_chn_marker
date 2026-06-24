@@ -39,7 +39,7 @@ function Scene({
       if (obj.isMesh) {
         obj.geometry.computeVertexNormals();
         obj.material = new THREE.MeshStandardMaterial({
-          color: '#cdbfb3',
+          color: '#cbced3',
           roughness: 0.85,
           metalness: 0.0,
           transparent: true,
