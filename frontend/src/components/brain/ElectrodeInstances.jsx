@@ -3,11 +3,13 @@ import * as THREE from 'three';
 
 const BASE_RADIUS = 1.6; // mm
 
+// Default contacts stay faint so they read as quiet context; only highlighted
+// states (selected / hovered / muscle) get a saturated, larger marker.
 const COLOR = {
-  muscle: '#ef4444',   // already-marked / staged muscle -> red
-  active: '#facc15',   // currently selected channel -> yellow
+  muscle: '#ef4444',   // marked muscle -> red
+  active: '#fde047',   // currently selected channel -> bright yellow
   hovered: '#22d3ee',  // hovered -> cyan
-  normal: '#cbd5e1',   // default -> light slate
+  normal: '#eaeff5',   // default -> very light, near-cortex tone
 };
 
 // One InstancedMesh for all electrodes (fast for hundreds of contacts).
@@ -35,7 +37,8 @@ export default function ElectrodeInstances({
       if (active) key = 'active';
       else if (hovered) key = 'hovered';
       else if (muscle) key = 'muscle';
-      const scale = active ? 2.2 : hovered ? 1.8 : muscle ? 1.5 : 1.0;
+      // Highlighted states are larger; default contacts are smaller + faint.
+      const scale = active ? 2.4 : hovered ? 1.9 : muscle ? 1.5 : 0.8;
 
       tmp.position.set(e.x, e.y, e.z);
       tmp.scale.setScalar(scale);
