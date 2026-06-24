@@ -61,7 +61,8 @@ body {
 .layout {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(340px, 38%) 1fr;
+  /* Brain panel (left) wider than the spectrogram panel (right). */
+  grid-template-columns: minmax(420px, 1.1fr) minmax(380px, 0.9fr);
   gap: 10px;
   padding: 10px;
   min-height: 0;
