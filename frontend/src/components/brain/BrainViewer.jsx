@@ -1,6 +1,6 @@
 import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import { TrackballControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import ElectrodeInstances from './ElectrodeInstances.jsx';
 
@@ -67,7 +67,19 @@ export default function BrainViewer({
           />
         )}
       </group>
-      <OrbitControls makeDefault enablePan target={[0, 0, 0]} />
+      {/* Trackball (not orbit) controls: rotation is in screen space with no
+          fixed up-vector, so horizontal drag always spins about the screen's
+          vertical axis and vertical drag about the screen's horizontal axis,
+          regardless of how the brain is currently oriented. */}
+      <TrackballControls
+        makeDefault
+        rotateSpeed={3.5}
+        zoomSpeed={1.2}
+        panSpeed={0.8}
+        staticMoving
+        minDistance={80}
+        maxDistance={1200}
+      />
     </Canvas>
   );
 }
