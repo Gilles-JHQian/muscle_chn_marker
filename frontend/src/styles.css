@@ -112,11 +112,34 @@ body {
 .brain-degraded h3 { margin: 0 0 6px; color: var(--text); }
 .brain-legend {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 14px;
   padding: 8px 12px;
   border-top: 1px solid var(--border);
   font-size: 12px;
   color: var(--muted);
+  flex-wrap: wrap;
+}
+.opacity-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.opacity-slider input[type='range'] {
+  width: 120px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.opacity-val {
+  width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.legend-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 2px;
 }
 .brain-legend .dot {
   display: inline-block;
