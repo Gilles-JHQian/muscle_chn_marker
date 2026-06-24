@@ -1,19 +1,21 @@
-"""FastAPI backend for the muscle channel marker.
+"""FastAPI backend for the muscle channel marker (multi-task).
 
 Serves the wavelet payload (contract C) and brain assets to the React frontend,
-and writes the muscle marks (contract B) on export. All filesystem locations come
-from :class:`webui.backend.paths.Paths` (env-driven). When a built frontend
-exists at ``frontend/dist`` it is mounted at ``/`` on the same port.
+and writes the muscle marks (contract B) on export. Filesystem locations come
+from :class:`webui.backend.paths.Paths`; payloads are namespaced by task
+(``{SAVE_DIR}/{TASK}/{SUBJ}/...``) so several tasks coexist and the GUI can
+switch between them. A built frontend at ``frontend/dist`` is mounted at ``/``.
 
-Endpoints (see plan_muscle_gui/PLAN.md):
-    GET  /api/subjects
-    GET  /api/subjects/{s}/manifest
-    GET  /api/subjects/{s}/thumbs/{tag}/{ch}.png
-    GET  /api/subjects/{s}/spectra/{tag}/{ch}
-    GET  /api/subjects/{s}/brain.glb
-    GET  /api/subjects/{s}/electrodes.json
-    GET  /api/subjects/{s}/muscle
-    POST /api/subjects/{s}/muscle    {channels: [...]}
+Endpoints:
+    GET  /api/tasks
+    GET  /api/tasks/{task}/subjects
+    GET  /api/tasks/{task}/subjects/{s}/manifest
+    GET  /api/tasks/{task}/subjects/{s}/thumbs/{tag}/{ch}.png
+    GET  /api/tasks/{task}/subjects/{s}/spectra/{tag}/{ch}
+    GET  /api/tasks/{task}/subjects/{s}/brain.glb
+    GET  /api/tasks/{task}/subjects/{s}/electrodes.json
+    GET  /api/tasks/{task}/subjects/{s}/muscle
+    POST /api/tasks/{task}/subjects/{s}/muscle    {channels: [...]}
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from functools import lru_cache
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,11 +33,17 @@ from pydantic import BaseModel
 
 from webui.backend import muscle_io, spectra_io
 from webui.backend.paths import Paths
-
-PATHS = Paths.from_env()
+from webui.preproc import config
 
 _SUBJECT_RE = re.compile(r"^D\d+$")
 _SAFE_RE = re.compile(r"^[A-Za-z0-9_.-]+$")  # tags / channel names
+
+
+@lru_cache(maxsize=len(config.KNOWN_TASKS) or 8)
+def _paths(task: str) -> Paths:
+    if task not in config.KNOWN_TASKS:
+        raise HTTPException(status_code=404, detail=f"unknown task: {task!r}")
+    return Paths.from_env(task=task)
 
 
 def _safe_subject(subject: str) -> str:
@@ -49,15 +58,40 @@ def _safe_token(value: str, kind: str) -> str:
     return value
 
 
-def _read_manifest(subject: str) -> dict:
-    path = PATHS.manifest_path(subject)
+def _read_manifest(paths: Paths, subject: str) -> dict:
+    path = paths.manifest_path(subject)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail=f"no manifest for {subject}")
     with open(path) as fh:
         return json.load(fh)
 
 
-app = FastAPI(title="Muscle Channel Marker", version="0.1.0")
+def _list_subjects(paths: Paths) -> list[dict]:
+    root = paths.task_dir()
+    out: list[dict] = []
+    if not os.path.isdir(root):
+        return out
+    for subject in sorted(os.listdir(root)):
+        man_path = paths.manifest_path(subject)
+        if not os.path.exists(man_path):
+            continue
+        try:
+            with open(man_path) as fh:
+                man = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            continue
+        out.append({
+            "subject": subject,
+            "task": man.get("task", paths.task),
+            "tags": man.get("tags", []),
+            "n_channels": len(man.get("channels", [])),
+            "has_recon": bool(man.get("has_recon"))
+            and os.path.exists(paths.brain_glb_path(subject)),
+        })
+    return out
+
+
+app = FastAPI(title="Muscle Channel Marker", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -68,63 +102,53 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health() -> dict:
-    return {
-        "ok": True,
-        "task": PATHS.task,
-        "save_dir": PATHS.save_dir,
-        "recon_dir": PATHS.recon_dir,
-    }
+    return {"ok": True, "tasks": list(config.KNOWN_TASKS)}
 
 
-@app.get("/api/subjects")
-def list_subjects() -> list[dict]:
-    """Every subject under SAVE_DIR that has a wavelet manifest."""
-    root = PATHS.save_dir
+@app.get("/api/tasks")
+def list_tasks() -> list[dict]:
+    """All known tasks with whether they're configured and how much data exists."""
     out: list[dict] = []
-    if not os.path.isdir(root):
-        return out
-    for subject in sorted(os.listdir(root)):
-        man_path = PATHS.manifest_path(subject)
-        if not os.path.exists(man_path):
-            continue
-        try:
-            with open(man_path) as fh:
-                man = json.load(fh)
-        except (OSError, json.JSONDecodeError):
-            continue
+    for task in config.KNOWN_TASKS:
+        paths = _paths(task)
         out.append({
-            "subject": subject,
-            "task": man.get("task", PATHS.task),
-            "tags": man.get("tags", []),
-            "n_channels": len(man.get("channels", [])),
-            "has_recon": bool(man.get("has_recon"))
-            and os.path.exists(PATHS.brain_glb_path(subject)),
+            "task": task,
+            "label": config.task_label(task),
+            "configured": config.is_configured(task),
+            "n_subjects": len(_list_subjects(paths)),
         })
     return out
 
 
-@app.get("/api/subjects/{subject}/manifest")
-def get_manifest(subject: str) -> dict:
-    return _read_manifest(_safe_subject(subject))
+@app.get("/api/tasks/{task}/subjects")
+def list_subjects(task: str) -> list[dict]:
+    return _list_subjects(_paths(task))
 
 
-@app.get("/api/subjects/{subject}/thumbs/{tag}/{channel}.png")
-def get_thumb(subject: str, tag: str, channel: str):
+@app.get("/api/tasks/{task}/subjects/{subject}/manifest")
+def get_manifest(task: str, subject: str) -> dict:
+    return _read_manifest(_paths(task), _safe_subject(subject))
+
+
+@app.get("/api/tasks/{task}/subjects/{subject}/thumbs/{tag}/{channel}.png")
+def get_thumb(task: str, subject: str, tag: str, channel: str):
+    paths = _paths(task)
     subject = _safe_subject(subject)
     tag = _safe_token(tag, "tag")
     channel = _safe_token(channel, "channel")
-    path = PATHS.thumb_path(subject, tag, channel)
+    path = paths.thumb_path(subject, tag, channel)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="thumb not found")
     return FileResponse(path, media_type="image/png")
 
 
-@app.get("/api/subjects/{subject}/spectra/{tag}/{channel}")
-def get_spectra(subject: str, tag: str, channel: str) -> dict:
+@app.get("/api/tasks/{task}/subjects/{subject}/spectra/{tag}/{channel}")
+def get_spectra(task: str, subject: str, tag: str, channel: str) -> dict:
+    paths = _paths(task)
     subject = _safe_subject(subject)
     tag = _safe_token(tag, "tag")
     channel = _safe_token(channel, "channel")
-    h5 = PATHS.tfr_path(subject, tag)
+    h5 = paths.tfr_path(subject, tag)
     if not os.path.exists(h5):
         raise HTTPException(status_code=404, detail=f"no {tag}-tfr.h5 for {subject}")
     try:
@@ -133,29 +157,32 @@ def get_spectra(subject: str, tag: str, channel: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@app.get("/api/subjects/{subject}/brain.glb")
-def get_brain(subject: str):
+@app.get("/api/tasks/{task}/subjects/{subject}/brain.glb")
+def get_brain(task: str, subject: str):
+    paths = _paths(task)
     subject = _safe_subject(subject)
-    path = PATHS.brain_glb_path(subject)
+    path = paths.brain_glb_path(subject)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="no brain.glb (no recon)")
     return FileResponse(path, media_type="model/gltf-binary")
 
 
-@app.get("/api/subjects/{subject}/electrodes.json")
-def get_electrodes(subject: str):
+@app.get("/api/tasks/{task}/subjects/{subject}/electrodes.json")
+def get_electrodes(task: str, subject: str):
+    paths = _paths(task)
     subject = _safe_subject(subject)
-    path = PATHS.electrodes_path(subject)
+    path = paths.electrodes_path(subject)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="no electrodes.json (no recon)")
     return FileResponse(path, media_type="application/json")
 
 
-@app.get("/api/subjects/{subject}/muscle")
-def get_muscle(subject: str) -> dict:
+@app.get("/api/tasks/{task}/subjects/{subject}/muscle")
+def get_muscle(task: str, subject: str) -> dict:
+    paths = _paths(task)
     subject = _safe_subject(subject)
-    channels = muscle_io.read_muscle_csv(PATHS.muscle_csv_path(subject))
-    return {"subject": subject, "channels": channels}
+    channels = muscle_io.read_muscle_csv(paths.muscle_csv_path(subject))
+    return {"subject": subject, "task": task, "channels": channels}
 
 
 class MuscleBody(BaseModel):
@@ -163,20 +190,22 @@ class MuscleBody(BaseModel):
     writeback_tsv: bool = True
 
 
-@app.post("/api/subjects/{subject}/muscle")
-def post_muscle(subject: str, body: MuscleBody):
+@app.post("/api/tasks/{task}/subjects/{subject}/muscle")
+def post_muscle(task: str, subject: str, body: MuscleBody):
+    paths = _paths(task)
     subject = _safe_subject(subject)
     try:
         result = muscle_io.save_muscle_marks(
             subject,
             body.channels,
-            csv_path=PATHS.muscle_csv_path(subject),
-            clean_ieeg_dir=PATHS.clean_ieeg_dir(subject),
-            task=PATHS.task,
+            csv_path=paths.muscle_csv_path(subject),
+            clean_ieeg_dir=paths.clean_ieeg_dir(subject),
+            task=paths.task,
             writeback_tsv=body.writeback_tsv,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    result["task"] = task
     return JSONResponse(result)
 
 

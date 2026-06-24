@@ -1,5 +1,6 @@
 // Thin fetch wrapper around the FastAPI backend. Same-origin in production
 // (backend serves dist/); in dev Vite proxies /api -> :8001 (vite.config.js).
+// All subject data is namespaced by task: /api/tasks/{task}/subjects/...
 
 const BASE = '';
 
@@ -12,19 +13,22 @@ async function getJSON(path) {
   return res.json();
 }
 
+const sub = (task, s) => `/api/tasks/${task}/subjects/${s}`;
+
 export const api = {
-  listSubjects: () => getJSON('/api/subjects'),
-  getManifest: (s) => getJSON(`/api/subjects/${s}/manifest`),
-  getSpectra: (s, tag, ch) => getJSON(`/api/subjects/${s}/spectra/${tag}/${ch}`),
-  getElectrodes: (s) => getJSON(`/api/subjects/${s}/electrodes.json`),
-  getMuscle: (s) => getJSON(`/api/subjects/${s}/muscle`),
+  listTasks: () => getJSON('/api/tasks'),
+  listSubjects: (task) => getJSON(`/api/tasks/${task}/subjects`),
+  getManifest: (task, s) => getJSON(`${sub(task, s)}/manifest`),
+  getSpectra: (task, s, tag, ch) => getJSON(`${sub(task, s)}/spectra/${tag}/${ch}`),
+  getElectrodes: (task, s) => getJSON(`${sub(task, s)}/electrodes.json`),
+  getMuscle: (task, s) => getJSON(`${sub(task, s)}/muscle`),
 
   // URLs consumed directly by <img> / useGLTF, not fetched as JSON.
-  thumbUrl: (s, tag, ch) => `${BASE}/api/subjects/${s}/thumbs/${tag}/${ch}.png`,
-  brainUrl: (s) => `${BASE}/api/subjects/${s}/brain.glb`,
+  thumbUrl: (task, s, tag, ch) => `${BASE}${sub(task, s)}/thumbs/${tag}/${ch}.png`,
+  brainUrl: (task, s) => `${BASE}${sub(task, s)}/brain.glb`,
 
-  async postMuscle(s, channels, writebackTsv = true) {
-    const res = await fetch(`${BASE}/api/subjects/${s}/muscle`, {
+  async postMuscle(task, s, channels, writebackTsv = true) {
+    const res = await fetch(`${BASE}${sub(task, s)}/muscle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ channels, writeback_tsv: writebackTsv }),

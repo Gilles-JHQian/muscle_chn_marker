@@ -17,7 +17,7 @@ const PLOT_CONFIG = {
 // One zoom/pan-able heatmap for a (tag, channel). Fetches its own slice.
 // The wavelet frequencies are geometrically spaced, so a log y-axis reproduces
 // the thumbnail's equal-per-bin layout while still labelling true Hz.
-function StageHeatmap({ subject, tag, channel }) {
+function StageHeatmap({ task, subject, tag, channel }) {
   const [spec, setSpec] = useState(null);
   const [error, setError] = useState(null);
 
@@ -26,13 +26,13 @@ function StageHeatmap({ subject, tag, channel }) {
     setSpec(null);
     setError(null);
     api
-      .getSpectra(subject, tag, channel)
+      .getSpectra(task, subject, tag, channel)
       .then((s) => alive && setSpec(s))
       .catch((e) => alive && setError(String(e.message || e)));
     return () => {
       alive = false;
     };
-  }, [subject, tag, channel]);
+  }, [task, subject, tag, channel]);
 
   if (error) return <div className="stage stage-error">{tag}: {error}</div>;
   if (!spec) return <div className="stage stage-loading">{tag}…</div>;
@@ -106,7 +106,7 @@ function ColorBar({ vlim }) {
 
 const VLIM = [-2, 2]; // matches webui/preproc/config.WAVELET_VLIM and manifest vlim
 
-export default function SpectrogramDetail({ subject, tags, channel }) {
+export default function SpectrogramDetail({ task, subject, tags, channel }) {
   if (!channel) {
     return (
       <div className="detail-empty">
@@ -118,7 +118,7 @@ export default function SpectrogramDetail({ subject, tags, channel }) {
     <div className="spectro-detail">
       <div className="spectro-stages">
         {tags.map((tag) => (
-          <StageHeatmap key={tag} subject={subject} tag={tag} channel={channel} />
+          <StageHeatmap key={tag} task={task} subject={subject} tag={tag} channel={channel} />
         ))}
       </div>
       <ColorBar vlim={VLIM} />
