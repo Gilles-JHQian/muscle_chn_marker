@@ -43,7 +43,7 @@ export default function BrainPanel({
   onSelect,
   onHover,
 }) {
-  const [cortexOpacity, setCortexOpacity] = useState(0.78);
+  const [cortexOpacity, setCortexOpacity] = useState(0.2);
   let body;
   if (!subject) {
     body = <Degraded message="Select a subject to begin." />;
