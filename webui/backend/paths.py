@@ -85,8 +85,13 @@ class Paths:
         )
 
     # --- contract C (wavelet payload + brain assets) -------------------------
+    # Payloads are namespaced by task: {SAVE_DIR}/{TASK}/{SUBJ}/... so several
+    # tasks can coexist under one SAVE_DIR (the GUI switches between them).
+    def task_dir(self) -> str:
+        return os.path.join(self.save_dir, self.task)
+
     def subject_dir(self, subject: str) -> str:
-        return os.path.join(self.save_dir, subject)
+        return os.path.join(self.task_dir(), subject)
 
     def wavelet_dir(self, subject: str) -> str:
         return os.path.join(self.subject_dir(subject), "wavelet")

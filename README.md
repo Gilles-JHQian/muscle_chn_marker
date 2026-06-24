@@ -49,24 +49,41 @@ Paths are resolved from environment variables (with DCC defaults):
 | Env | Meaning | Default |
 |---|---|---|
 | `LAB_ROOT` | root holding `BIDS-1.0_{TASK}/BIDS` | `/cwork/jq81/cogan_lab_box/CoganLab` |
-| `MUSCLE_TASK` | task tag | `LexicalDecRepDelay` |
-| `SAVE_DIR` | wavelet / brain payload root (`{SAVE_DIR}/{SUBJ}/...`) | `<repo>/data/spectra` |
+| `MUSCLE_TASK` | task tag (data-prep default; the backend serves *all* tasks) | `LexicalDecRepDelay` |
+| `SAVE_DIR` | wavelet / brain payload root, namespaced by task (`{SAVE_DIR}/{TASK}/{SUBJ}/...`) | `<repo>/data/spectra` |
 | `RECON_DIR` | ECoG Recon root | `/cwork/jq81/cogan_lab_box/ECoG_Recon` |
-| `MUSCLE_CSV_DIR` | contract-B CSV output dir | `{BIDS_ROOT}/coganlab_ieeg/muscle_chans` |
+| `MUSCLE_CSV_DIR` | contract-B CSV output dir (per task; leave unset for multi-task) | `{BIDS_ROOT}/coganlab_ieeg/muscle_chans` |
+
+### Tasks
+
+The GUI has a task selector; the backend serves every task that has data under
+`{SAVE_DIR}/{TASK}/`. Known tasks (`webui/preproc/config.py`):
+
+| Task | Status | Tags |
+|---|---|---|
+| `LexicalDecRepDelay` | ready | Cue / Auditory / Go / Resp |
+| `LexicalDecRepNoDelay` | ready | Cue / Auditory / Resp |
+| `UniquenessPoint` | known, **event windows not yet configured** | — |
+
+To enable `UniquenessPoint`, fill in its `TASK_EVENTS[...]` entry (epoch query,
+window, tag, baseline) in `webui/preproc/config.py`, then run data-prep for it.
 
 ## Quick start
 
 ```bash
-# 1. Data prep (sbatch-heavy) — one subject:
+# 1. Data prep (sbatch-heavy) — one subject, per task:
 conda run -n Lexical_NoDelay python -m webui.dataprep.make_spectra \
     --subject D0100 --task LexicalDecRepDelay
+conda run -n Lexical_NoDelay python -m webui.dataprep.make_spectra \
+    --subject D0100 --task LexicalDecRepNoDelay
 
-# 2. Brain assets (fast; subjects with ECoG Recon only):
-conda run -n Lexical_NoDelay python -m webui.export.export_subject_brain --subject D0100
+# 2. Brain assets (fast; subjects with ECoG Recon only) — per task:
+conda run -n Lexical_NoDelay python -m webui.export.export_subject_brain \
+    --subject D0100 --task LexicalDecRepDelay
 
 # 3. Launch (dev, two-process):
 bash scripts/dev.sh
-# ...then tunnel :5173 from your laptop.
+# ...then tunnel :5173 from your laptop and switch tasks in the top bar.
 ```
 
 See [`plan_muscle_gui/PLAN.md`](plan_muscle_gui/PLAN.md) §验证 for the end-to-end

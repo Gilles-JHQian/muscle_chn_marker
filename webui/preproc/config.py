@@ -53,11 +53,47 @@ TASK_EVENTS: dict[str, list[EventSpec]] = {
         EventSpec("Auditory_stim/Repeat/CORRECT", (-0.5, 1.0), "Auditory"),
         EventSpec("Resp/Repeat/CORRECT", (-0.5, 1.0), "Resp"),
     ],
-    # UniquenessPoint: reserved -- event queries / windows / baseline still TBD
-    # (see plan_muscle_gui/PLAN.md "Uniqueness point 待补信息").
+    # ------------------------------------------------------------------ #
+    # UniquenessPoint: event queries / windows / baseline still TBD.
+    # The task is *known* (selectable, storable, serveable) but cannot be
+    # data-prepped until its EventSpec list is filled in here. See
+    # plan_muscle_gui/PLAN.md "Uniqueness point 待补信息". Template:
+    #   "UniquenessPoint": [
+    #       EventSpec("<cue query>/CORRECT",  (-0.5, 3.0), "Cue", baseline=True),
+    #       EventSpec("<aud query>/CORRECT",  (-0.5, 3.0), "Auditory"),
+    #       EventSpec("<up  query>/CORRECT",  (-0.5, 1.0), "UniqPoint"),
+    #       EventSpec("<go  query>/CORRECT",  (-0.5, 1.0), "Go"),
+    #       EventSpec("<resp query>/CORRECT", (-0.5, 1.0), "Resp"),
+    #   ],
+    # ------------------------------------------------------------------ #
 }
 
-SUPPORTED_TASKS = tuple(TASK_EVENTS.keys())
+# Human-readable labels for the UI task selector.
+TASK_LABELS: dict[str, str] = {
+    "LexicalDecRepDelay": "Lexical Decision Repeat (Delay)",
+    "LexicalDecRepNoDelay": "Lexical Decision Repeat (No Delay)",
+    "UniquenessPoint": "Uniqueness Point",
+}
+
+# Every task the tool recognizes (selectable / storable), even if its event
+# windows are not configured yet. Order = preferred UI order.
+KNOWN_TASKS = (
+    "LexicalDecRepDelay",
+    "LexicalDecRepNoDelay",
+    "UniquenessPoint",
+)
+
+# Tasks whose wavelet event windows are defined (i.e. make_spectra can run).
+SUPPORTED_TASKS = tuple(t for t in KNOWN_TASKS if t in TASK_EVENTS)
+
+
+def is_configured(task: str) -> bool:
+    """True if the task has wavelet event windows defined (data-prep can run)."""
+    return task in TASK_EVENTS
+
+
+def task_label(task: str) -> str:
+    return TASK_LABELS.get(task, task)
 
 
 def tags_for_task(task: str) -> list[str]:
@@ -66,12 +102,15 @@ def tags_for_task(task: str) -> list[str]:
 
 
 def events_for_task(task: str) -> list[EventSpec]:
-    try:
-        events = TASK_EVENTS[task]
-    except KeyError as exc:
-        raise KeyError(
-            f"Unsupported task {task!r}; known tasks: {SUPPORTED_TASKS}"
-        ) from exc
+    if task not in KNOWN_TASKS:
+        raise KeyError(f"Unknown task {task!r}; known tasks: {KNOWN_TASKS}")
+    if task not in TASK_EVENTS:
+        raise NotImplementedError(
+            f"Event windows for {task!r} are not configured yet. Add a "
+            f"TASK_EVENTS[{task!r}] entry (epoch query, (t0,t1), tag, baseline) "
+            "to webui/preproc/config.py before running make_spectra."
+        )
+    events = TASK_EVENTS[task]
     # The baseline event must come first so make_spectra has the baseline ready
     # before any later tag needs it (Cue is first in both task lists).
     if not events[0].baseline:

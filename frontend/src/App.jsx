@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api.js';
+import TaskSelector from './components/TaskSelector.jsx';
 import SubjectDropdown from './components/SubjectDropdown.jsx';
 import BrainPanel from './components/brain/BrainPanel.jsx';
 import SpectrogramPanel from './components/spectro/SpectrogramPanel.jsx';
 
 export default function App() {
+  const [tasks, setTasks] = useState([]);
+  const [task, setTask] = useState('');
   const [subjects, setSubjects] = useState([]);
   const [subject, setSubject] = useState('');
   const [manifest, setManifest] = useState(null);
@@ -16,20 +19,40 @@ export default function App() {
   const [electrodesError, setElectrodesError] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
-  // --- bootstrap: subject list -------------------------------------------
+  // --- bootstrap: task list, pick first task that has data ----------------
   useEffect(() => {
     api
-      .listSubjects()
+      .listTasks()
       .then((list) => {
-        setSubjects(list);
-        if (list.length) setSubject((cur) => cur || list[0].subject);
+        setTasks(list);
+        const firstWithData = list.find((t) => t.n_subjects > 0);
+        if (firstWithData) setTask((cur) => cur || firstWithData.task);
       })
       .catch((e) => setLoadError(String(e.message || e)));
   }, []);
 
+  // --- on task change: subject list ---------------------------------------
+  useEffect(() => {
+    if (!task) return;
+    let alive = true;
+    setSubjects([]);
+    setSubject('');
+    api
+      .listSubjects(task)
+      .then((list) => {
+        if (!alive) return;
+        setSubjects(list);
+        setSubject(list.length ? list[0].subject : '');
+      })
+      .catch((e) => alive && setLoadError(String(e.message || e)));
+    return () => {
+      alive = false;
+    };
+  }, [task]);
+
   // --- on subject change: manifest + muscle marks + electrodes ------------
   useEffect(() => {
-    if (!subject) return;
+    if (!task || !subject) return;
     let alive = true;
     setManifest(null);
     setElectrodes(null);
@@ -38,7 +61,7 @@ export default function App() {
     setHoveredChannel(null);
 
     api
-      .getManifest(subject)
+      .getManifest(task, subject)
       .then((m) => {
         if (!alive) return;
         setManifest(m);
@@ -47,31 +70,31 @@ export default function App() {
       .catch((e) => alive && setLoadError(String(e.message || e)));
 
     api
-      .getMuscle(subject)
+      .getMuscle(task, subject)
       .then((res) => alive && setMuscleSet(new Set(res.channels)))
       .catch(() => alive && setMuscleSet(new Set()));
 
     return () => {
       alive = false;
     };
-  }, [subject]);
+  }, [task, subject]);
 
   // electrodes only when this subject has recon
   const hasRecon = !!manifest?.has_recon;
   useEffect(() => {
-    if (!subject || !hasRecon) {
+    if (!task || !subject || !hasRecon) {
       setElectrodes(null);
       return;
     }
     let alive = true;
     api
-      .getElectrodes(subject)
+      .getElectrodes(task, subject)
       .then((els) => alive && setElectrodes(els))
       .catch((e) => alive && setElectrodesError(String(e.message || e)));
     return () => {
       alive = false;
     };
-  }, [subject, hasRecon]);
+  }, [task, subject, hasRecon]);
 
   const tags = manifest?.tags || [];
   const channels = manifest?.channels || [];
@@ -87,8 +110,8 @@ export default function App() {
   }, []);
 
   const brainUrl = useMemo(
-    () => (subject ? api.brainUrl(subject) : null),
-    [subject],
+    () => (task && subject ? api.brainUrl(task, subject) : null),
+    [task, subject],
   );
 
   return (
@@ -96,11 +119,11 @@ export default function App() {
       <header className="topbar">
         <h1>Muscle Channel Marker</h1>
         <div className="topbar-controls">
+          <TaskSelector tasks={tasks} value={task} onChange={setTask} />
           <SubjectDropdown subjects={subjects} value={subject} onChange={setSubject} />
           {manifest && (
             <span className="muted">
-              {manifest.task} · {channels.length} channels
-              {hasRecon ? ' · recon' : ' · no recon'}
+              {channels.length} channels{hasRecon ? ' · recon' : ' · no recon'}
             </span>
           )}
         </div>
@@ -122,6 +145,7 @@ export default function App() {
           onHover={setHoveredChannel}
         />
         <SpectrogramPanel
+          task={task}
           subject={subject}
           tags={tags}
           tag={tag}

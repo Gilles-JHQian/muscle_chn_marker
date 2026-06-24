@@ -5,6 +5,7 @@ import MarkingControls from './MarkingControls.jsx';
 import ExportButton from './ExportButton.jsx';
 
 export default function SpectrogramPanel({
+  task,
   subject,
   tags,
   tag,
@@ -26,6 +27,7 @@ export default function SpectrogramPanel({
 
       <div className="spectro-grid-wrap">
         <SpectrogramGrid
+          task={task}
           subject={subject}
           tag={tag}
           channels={channels}
@@ -38,7 +40,7 @@ export default function SpectrogramPanel({
       </div>
 
       <div className="spectro-detail-wrap">
-        <SpectrogramDetail subject={subject} tags={tags} channel={selectedChannel} />
+        <SpectrogramDetail task={task} subject={subject} tags={tags} channel={selectedChannel} />
       </div>
 
       <div className="spectro-actions">
@@ -47,7 +49,7 @@ export default function SpectrogramPanel({
           isMuscle={selectedChannel ? muscleSet.has(selectedChannel) : false}
           onToggle={onToggleMuscle}
         />
-        <ExportButton subject={subject} muscleSet={muscleSet} />
+        <ExportButton task={task} subject={subject} muscleSet={muscleSet} />
       </div>
     </section>
   );

@@ -3,6 +3,7 @@ import { api } from '../../api.js';
 // Tiled thumbnails of every channel's spectrogram for the current tag.
 // Click selects the channel (mirrors clicking the electrode on the brain).
 export default function SpectrogramGrid({
+  task,
   subject,
   tag,
   channels,
@@ -12,7 +13,7 @@ export default function SpectrogramGrid({
   onSelect,
   onHover,
 }) {
-  if (!subject || !tag) return null;
+  if (!task || !subject || !tag) return null;
   return (
     <div className="spectro-grid">
       {channels.map((ch) => {
@@ -32,7 +33,7 @@ export default function SpectrogramGrid({
             onMouseLeave={() => onHover(null)}
           >
             <img
-              src={api.thumbUrl(subject, tag, ch)}
+              src={api.thumbUrl(task, subject, tag, ch)}
               alt={ch}
               loading="lazy"
               draggable={false}
