@@ -15,7 +15,9 @@ const PLOT_CONFIG = {
 };
 
 // One zoom/pan-able heatmap for a (tag, channel). Fetches its own slice.
-function StageHeatmap({ subject, tag, channel, showColorbar }) {
+// The wavelet frequencies are geometrically spaced, so a log y-axis reproduces
+// the thumbnail's equal-per-bin layout while still labelling true Hz.
+function StageHeatmap({ subject, tag, channel }) {
   const [spec, setSpec] = useState(null);
   const [error, setError] = useState(null);
 
@@ -49,16 +51,24 @@ function StageHeatmap({ subject, tag, channel, showColorbar }) {
             zmax,
             colorscale: PARULA,
             zsmooth: 'best',
-            showscale: showColorbar,
-            colorbar: { title: 'dB', thickness: 8, len: 0.9 },
+            showscale: false,
             hovertemplate: 't=%{x:.2f}s<br>f=%{y:.0f}Hz<br>%{z:.1f} dB<extra></extra>',
           },
         ]}
         layout={{
-          title: { text: tag, font: { size: 13 } },
-          margin: { l: 44, r: showColorbar ? 10 : 6, t: 26, b: 34 },
-          xaxis: { title: 'Time (s)', zeroline: true, zerolinecolor: '#334155' },
-          yaxis: { title: 'Freq (Hz)' },
+          title: { text: tag, font: { size: 12 }, x: 0.5, xanchor: 'center', y: 0.97, yanchor: 'top' },
+          margin: { l: 46, r: 6, t: 22, b: 30 },
+          xaxis: {
+            title: { text: 'Time (s)', standoff: 4 },
+            zeroline: true,
+            zerolinecolor: '#334155',
+            automargin: true,
+          },
+          yaxis: {
+            type: 'log',
+            title: { text: 'Freq (Hz)', standoff: 2 },
+            automargin: true,
+          },
           paper_bgcolor: '#ffffff',
           plot_bgcolor: '#ffffff',
           uirevision: `${subject}-${channel}-${tag}`,
@@ -72,6 +82,30 @@ function StageHeatmap({ subject, tag, channel, showColorbar }) {
   );
 }
 
+// A single shared colour bar to the right of all four heatmaps. They all use the
+// same parula scale + vlim, so one static bar (CSS gradient) is clearer than a
+// per-plot bar and avoids label overlap.
+function ColorBar({ vlim }) {
+  const stops = PARULA.map(([f, c]) => `${c} ${Math.round(f * 100)}%`).join(', ');
+  const [lo, hi] = vlim;
+  const mid = (lo + hi) / 2;
+  return (
+    <div className="spectro-colorbar">
+      <span className="cb-title">dB</span>
+      <div className="cb-body">
+        <div className="cb-bar" style={{ background: `linear-gradient(to top, ${stops})` }} />
+        <div className="cb-ticks">
+          <span>{hi}</span>
+          <span>{mid}</span>
+          <span>{lo}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const VLIM = [-2, 2]; // matches webui/preproc/config.WAVELET_VLIM and manifest vlim
+
 export default function SpectrogramDetail({ subject, tags, channel }) {
   if (!channel) {
     return (
@@ -82,15 +116,12 @@ export default function SpectrogramDetail({ subject, tags, channel }) {
   }
   return (
     <div className="spectro-detail">
-      {tags.map((tag, i) => (
-        <StageHeatmap
-          key={tag}
-          subject={subject}
-          tag={tag}
-          channel={channel}
-          showColorbar={i === tags.length - 1}
-        />
-      ))}
+      <div className="spectro-stages">
+        {tags.map((tag) => (
+          <StageHeatmap key={tag} subject={subject} tag={tag} channel={channel} />
+        ))}
+      </div>
+      <ColorBar vlim={VLIM} />
     </div>
   );
 }

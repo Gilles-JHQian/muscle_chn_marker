@@ -246,11 +246,43 @@ body {
 
 .spectro-detail-wrap { flex: 1; min-height: 0; overflow: hidden; padding: 6px; }
 .spectro-detail {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+}
+.spectro-stages {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: 6px;
+}
+/* shared colour bar to the right of the 2x2 heatmap block */
+.spectro-colorbar {
+  width: 52px;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0;
+}
+.cb-title { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.cb-body { flex: 1; display: flex; gap: 4px; min-height: 0; }
+.cb-bar {
+  width: 16px;
   height: 100%;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.cb-ticks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .stage { min-height: 0; min-width: 0; }
 .stage-loading, .stage-error, .detail-empty {
