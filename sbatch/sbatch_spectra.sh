@@ -14,7 +14,24 @@
 # Each array index N maps to subject D{N:04} (100 -> D0100).
 set -eo pipefail
 
-REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# Locate the repo root that actually contains the webui/ package, so this
+# works no matter which directory `sbatch` was invoked from. SLURM spools the
+# batch script, so BASH_SOURCE is unreliable under sbatch; probe the likely
+# roots in order and pick the first that holds webui/.
+REPO_DIR=""
+for cand in \
+  "$SLURM_SUBMIT_DIR" \
+  "$SLURM_SUBMIT_DIR/muscle_chn_marker" \
+  "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; do
+  if [[ -n "$cand" && -d "$cand/webui" ]]; then
+    REPO_DIR="$cand"
+    break
+  fi
+done
+if [[ -z "$REPO_DIR" ]]; then
+  echo "[sbatch] cannot locate the webui/ repo root (looked under SLURM_SUBMIT_DIR=$SLURM_SUBMIT_DIR)" >&2
+  exit 1
+fi
 cd "$REPO_DIR"
 mkdir -p logs
 
