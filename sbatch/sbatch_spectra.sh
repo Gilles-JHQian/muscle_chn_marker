@@ -19,7 +19,7 @@ cd "$REPO_DIR"
 mkdir -p logs
 
 CONDA_ENV="${CONDA_ENV:-Lexical_NoDelay}"
-export MUSCLE_TASK="${MUSCLE_TASK:-LexicalDecRepDelay}"
+export MUSCLE_TASK="${MUSCLE_TASK:-LexicalDecRepNoDelay}"
 export LAB_ROOT="${LAB_ROOT:-/cwork/jq81/cogan_lab_box/CoganLab}"
 export RECON_DIR="${RECON_DIR:-/cwork/jq81/cogan_lab_box/ECoG_Recon}"
 export SAVE_DIR="${SAVE_DIR:-$REPO_DIR/data/spectra}"
